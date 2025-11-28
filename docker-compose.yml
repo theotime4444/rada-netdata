@@ -1,0 +1,53 @@
+services:
+  netdata:
+    image: netdata/netdata:latest
+    container_name: netdata
+    hostname: ${NETDATA_HOSTNAME:-netdata}
+    restart: unless-stopped
+    cap_add:
+      - SYS_PTRACE
+      - SYS_ADMIN
+    security_opt:
+      - apparmor:unconfined
+    volumes:
+      - ./data/netdata:/var/cache/netdata
+      - ./data/netdata/lib:/var/lib/netdata
+      - ./data/netdata/log:/var/log/netdata
+      - /etc/passwd:/host/etc/passwd:ro
+      - /etc/group:/host/etc/group:ro
+      - /etc/os-release:/host/etc/os-release:ro
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /etc:/host/etc:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      - NETDATA_CLAIM_TOKEN=${NETDATA_CLAIM_TOKEN:-}
+      - NETDATA_CLAIM_URL=${NETDATA_CLAIM_URL:-}
+      - NETDATA_CLAIM_ROOMS=${NETDATA_CLAIM_ROOMS:-}
+      - DOCKER_USR=root
+    networks:
+      - rada-infra_proxy
+
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.netdata.rule=Host(`${NETDATA_SUBDOMAIN}.${DOMAIN}`)"
+      - "traefik.http.routers.netdata.entrypoints=websecure"
+      - "traefik.http.routers.netdata.tls.certresolver=le"
+      - "traefik.http.middlewares.netdata-security-headers.headers.stsSeconds=31536000"
+      - "traefik.http.middlewares.netdata-security-headers.headers.stsIncludeSubdomains=true"
+      - "traefik.http.middlewares.netdata-security-headers.headers.stsPreload=true"
+      - "traefik.http.middlewares.netdata-security-headers.headers.forceSTSHeader=true"
+      - "traefik.http.middlewares.netdata-security-headers.headers.frameDeny=true"
+      - "traefik.http.middlewares.netdata-security-headers.headers.contentTypeNosniff=true"
+      - "traefik.http.middlewares.netdata-security-headers.headers.browserXssFilter=true"
+      - "traefik.http.middlewares.netdata-security-headers.headers.referrerPolicy=strict-origin-when-cross-origin"
+      - "traefik.http.routers.netdata.middlewares=netdata-security-headers@docker"
+      - "traefik.http.routers.netdata-http.rule=Host(`${NETDATA_SUBDOMAIN}.${DOMAIN}`)"
+      - "traefik.http.routers.netdata-http.entrypoints=web"
+      - "traefik.http.routers.netdata-http.middlewares=redirect-to-https@file"
+      - "traefik.http.services.netdata.loadbalancer.server.port=19999"
+
+networks:
+  rada-infra_proxy:
+    external: true
+

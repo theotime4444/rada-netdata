@@ -1,0 +1,91 @@
+name: Deploy App to Raspberry
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Load SSH key (for Raspberry access only)
+        uses: webfactory/ssh-agent@v0.9.1
+        with:
+          ssh-private-key: ${{ secrets.RASPBERRY_SSH_KEY }}
+
+      - name: Deploy to Raspberry
+        env:
+          APP_NAME: ${{ github.event.repository.name }}
+          REPO_CLONE_URL: https://x-access-token:${{ secrets.PAT }}@github.com/${{ github.repository }}.git
+
+          # 🔹 Secrets globaux (Environment Secrets)
+          DOMAIN: ${{ secrets.DOMAIN }}
+          EMAIL_CERT: ${{ secrets.EMAIL_CERT }}
+          PROXY_NETWORK: ${{ secrets.PROXY_NETWORK }}
+
+          # 🔹 Secrets propres à l'app (Repo Secrets)
+          NETDATA_SUBDOMAIN: ${{ secrets.NETDATA_SUBDOMAIN }}
+          NETDATA_HOSTNAME: ${{ secrets.NETDATA_HOSTNAME }}
+          NETDATA_CLAIM_TOKEN: ${{ secrets.NETDATA_CLAIM_TOKEN }}
+          NETDATA_CLAIM_URL: ${{ secrets.NETDATA_CLAIM_URL }}
+          NETDATA_CLAIM_ROOMS: ${{ secrets.NETDATA_CLAIM_ROOMS }}
+
+        run: |
+          ssh -o StrictHostKeyChecking=no ${{ secrets.RASPBERRY_USER }}@${{ secrets.RASPBERRY_HOST }} "
+            set -e
+
+            BASE_DIR=${{ secrets.RASPBERRY_APPS_PATH }}
+            mkdir -p \$BASE_DIR
+            cd \$BASE_DIR
+
+            if [ ! -d \"${APP_NAME}\" ]; then
+              echo \"📁 First deployment → cloning repo\"
+              git clone \"${REPO_CLONE_URL}\" \"${APP_NAME}\"
+            fi
+
+            cd \"${APP_NAME}\"
+
+            echo \"✅ Pull latest changes\"
+            git pull origin main || true
+
+            # ✅ Fonction utilitaire pour ajouter ou mettre à jour une variable dans .env
+            add_or_update_env() {
+              KEY=\$1
+              VALUE=\$2
+              if grep -q \"^\${KEY}=\" .env 2>/dev/null; then
+                sed -i \"s|^\${KEY}=.*|\${KEY}=\${VALUE}|\" .env
+              else
+                echo \"\${KEY}=\${VALUE}\" >> .env
+              fi
+            }
+
+            # ✅ Création si .env absent
+            if [ ! -f .env ]; then
+              echo \"✅ Creating .env\"
+              touch .env
+            fi
+
+            # ✅ Mise à jour non-destructive
+            add_or_update_env DOMAIN \"${DOMAIN}\"
+            add_or_update_env EMAIL_CERT \"${EMAIL_CERT}\"
+            add_or_update_env PROXY_NETWORK \"${PROXY_NETWORK}\"
+
+            add_or_update_env NETDATA_SUBDOMAIN \"${NETDATA_SUBDOMAIN}\"
+            add_or_update_env NETDATA_HOSTNAME \"${NETDATA_HOSTNAME}\"
+            add_or_update_env NETDATA_CLAIM_TOKEN \"${NETDATA_CLAIM_TOKEN}\"
+            add_or_update_env NETDATA_CLAIM_URL \"${NETDATA_CLAIM_URL}\"
+            add_or_update_env NETDATA_CLAIM_ROOMS \"${NETDATA_CLAIM_ROOMS}\"
+
+            echo \"✅ Final .env content:\"
+            cat .env
+
+            docker compose pull || true
+            docker compose up -d
+          "
+

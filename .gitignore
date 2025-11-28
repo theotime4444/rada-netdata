@@ -1,0 +1,22 @@
+# Environnement
+.env
+
+# Données sensibles et certificats
+data/
+
+# Logs
+*.log
+
+# macOS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Docker
+.docker/
+
