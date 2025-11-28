@@ -4,7 +4,7 @@ Instance Netdata auto-hébergée, derrière Traefik, déployée sur le Raspberry
 
 ## Fichiers
 
-- `docker-compose.yml` : définition du service netdata + labels Traefik
+- `docker-compose.yml` : définition du service netdata + labels Traefik.
 - `.env` : configuration locale (non versionnée), basé sur `.env.example`
 - `.github/workflows/deploy.yml` : pipeline de déploiement sur le Raspberry
 
