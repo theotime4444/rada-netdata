@@ -37,7 +37,7 @@ jobs:
           NETDATA_CLAIM_ROOMS: ${{ secrets.NETDATA_CLAIM_ROOMS }}
 
         run: |
-          ssh -o StrictHostKeyChecking=no ${{ secrets.RASPBERRY_USER }}@${{ secrets.RASPBERRY_HOST }} "
+          ssh -p 2222 -o StrictHostKeyChecking=no ${{ secrets.RASPBERRY_USER }}@${{ secrets.RASPBERRY_HOST }} "
             set -e
 
             BASE_DIR=${{ secrets.RASPBERRY_APPS_PATH }}
